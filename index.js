@@ -24,7 +24,7 @@ updatePetInformation();
 updatePlayerInformation();
 
 // features
-new JacobFeature(jacobHUD);
+const JacobWindow = new JacobFeature().getWindow();
 calculateBlockBreaksPerSecond();
 updateYawAndPitch();
 updateYieldEfficiency();
@@ -38,12 +38,6 @@ this.guiWrapper.registerClicked((x, y, b) => this.mainHUD.mouseClick(x, y, b));
 this.guiWrapper.registerMouseDragged((x, y, b) => this.mainHUD.mouseDrag(x, y, b));
 this.guiWrapper.registerScrolled((x, y, s) => this.mainHUD.mouseScroll(s));
 this.guiWrapper.registerMouseReleased((x, y, b) => this.mainHUD.mouseRelease());
-
-this.guiWrapper.registerDraw((x, y) => this.jacobHUD.draw());
-this.guiWrapper.registerClicked((x, y, b) => this.jacobHUD.mouseClick(x, y, b));
-this.guiWrapper.registerMouseDragged((x, y, b) => this.jacobHUD.mouseDrag(x, y, b));
-this.guiWrapper.registerScrolled((x, y, s) => this.jacobHUD.mouseScroll(s));
-this.guiWrapper.registerMouseReleased((x, y, b) => this.jacobHUD.mouseRelease());
 
 this.orderGUI.registerDraw((x, y) => this.mainHUD.draw());
 this.orderGUI.registerClicked((x, y, b) => this.mainHUD.mouseClick(x, y, b));
@@ -61,9 +55,6 @@ let toolHUDHidden = false;
 let xpHUD = createXpHud();
 let xpHUDHidden = false;
 
-//let jacobHUD = createJacobHud();
-//let jacobHidden = false;
-
 let orderhud = createOrderHUD(XP_DISPLAY_INFORMATION);
 
 mainHUD.addChildren(inspectorHUD);
@@ -76,7 +67,7 @@ mainHUD.removeChild(orderhud);
 
 register('renderOverlay', () => {
     if (guiHidden.value && Settings.neverHideJacobsHUD) {
-        jacobHUD.draw();
+        JacobWindow.draw();
     }
     if (!World.isLoaded() || reload || guiHidden.value) return;
     ////////////////////////////////////////////////////
@@ -137,20 +128,6 @@ register('renderOverlay', () => {
         }
     }
     /////////////////////////////////////////////////////
-    /*if (Settings.jacobHudEnabled) {
-        if (jacobHidden) {
-            jacobHidden = false;
-            jacobHUD = createJacobHud();
-            mainHUD.addChildren(jacobHUD);
-        }
-    } else {
-        if (!jacobHidden) {
-            jacobHidden = true;
-            mainHUD.removeChild(jacobHUD);
-            jacobHUD = null;
-        }
-    }*/
-    /////////////////////////////////////////////////////
     if (orderGUI.isOpen() && !Settings.orderHudEnabled) {
         switch (Settings.order) {
             case 'xp':
@@ -177,7 +154,7 @@ register('renderOverlay', () => {
         }
     }
     mainHUD.draw();
-    jacobHUD.draw();
+    JacobWindow.draw();
 });
 
 let reload = false;
@@ -196,7 +173,6 @@ function fullReload() {
     toolHUD = null;
     inspectorHUD = null;
     debugHUD = null;
-    //jacobHUD = null;
     inspectorHUD = getInspector();
     debugHUD = createDebugHud();
     inspectorHidden = false;
@@ -207,13 +183,9 @@ function fullReload() {
     xpHUD = createXpHud();
     xpHUDHidden = false;
 
-    //jacobHUD = createJacobHud();
-    //jacobHidden = false;
-
     mainHUD.addChildren(inspectorHUD);
     debugHUD.forEach(child => mainHUD.addChildren(child));
     mainHUD.addChildren(toolHUD);
     mainHUD.addChildren(xpHUD);
-    //mainHUD.addChildren(jacobHUD);
     reload = false;
 }

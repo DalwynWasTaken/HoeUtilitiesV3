@@ -5,92 +5,64 @@ import { CROP_TO_IMAGE } from "../utils/constants";
 import {
     AdditiveConstraint,
     ChildBasedRangeConstraint,
-    ChildBasedSizeConstraint,
-    UIRoundedRectangle,
     ConstantColorConstraint,
-    Animations,
     UIText,
     SiblingConstraint,
     RainbowColorConstraint,
-    UIImage,
-    animate
+    UIImage
 } from "../../Elementa"
+// Jacob event is unique due to it being a different kind of display than the others
+import { BasicHUD } from "../hud/BasicHUD";
+
+const Window = new BasicHUD(
+    new AdditiveConstraint(new ChildBasedRangeConstraint(), (10).pixels()),
+    new AdditiveConstraint(new ChildBasedRangeConstraint(), (5).pixels())
+)
+    .setX(Settings.locationJacobHUDX)
+    .setY(Settings.locationJacobHUDY)
+    .setColor(Settings.colorJacobBackground)
+    .setToggle(Settings.jacobHudEnabled);
+
+Window.registerTo(guiWrapper);
 
 const Color = Java.type("java.awt.Color");
 const File = Java.type("java.io.File");
 
 export class JacobFeature {
-    static dragInfo = {
-        relativeX: 0,
-        relativeY: 0,
-        selected: false,
-    };
+    // ---------- API ----------
 
-    static container = new UIRoundedRectangle(3)
-        .setX((Settings.locationJacobHUDX).pixels())
-        .setY((Settings.locationJacobHUDY).pixels())
-        .setWidth(new AdditiveConstraint(new ChildBasedSizeConstraint(), (10).pixels()))
-        .setHeight(new AdditiveConstraint(new ChildBasedRangeConstraint(), (5).pixels()))
-        .setColor(new ConstantColorConstraint(Settings.colorJacobBackground))
-        .onMouseClick((_, event) => {
-            JacobFeature.dragInfo.selected = true;
-            JacobFeature.dragInfo.relativeX = event.relativeX;
-            JacobFeature.dragInfo.relativeY = event.relativeY;
-        })
-        .onMouseRelease(() => {
-            if (!JacobFeature.dragInfo.selected) return;
-            JacobFeature.dragInfo.selected = false;
-        })
-        .onMouseDrag((comp, mx, my) => {
-            if (!JacobFeature.dragInfo.selected) return;
-
-            comp.setX((comp.getLeft() + mx - JacobFeature.dragInfo.relativeX).pixels());
-            comp.setY((comp.getTop() + my - JacobFeature.dragInfo.relativeY).pixels());
-
-            Settings.locationJacobHUDX = comp.getLeft();
-            Settings.locationJacobHUDY = comp.getTop();
-            Settings.save();
-        })
-        .onMouseEnter((comp) => {
-            if (!guiWrapper.gui.isOpen()) return;
-            animate(comp, (animation) => {
-                animation.setColorAnimation(
-                    Animations.OUT_EXP, 0.3, new ConstantColorConstraint(new Color(17 / 255, 192 / 255, 49 / 255))
-                );
-            });
-        })
-        .onMouseLeave((comp) => {
-            if (!guiWrapper.gui.isOpen()) return;
-            animate(comp, (animation) => {
-                animation.setColorAnimation(
-                    Animations.OUT_EXP, 0.3, new ConstantColorConstraint(Settings.colorJacobBackground)
-                );
-            });
+    static eventList = {};
+    static getEvents() {
+        axios.get("https://dawjaw.net/jacobs", {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (ChatTriggers)"
+            },
+        }).then(response => {
+            JacobFeature.eventList = response.data;
+        }).catch(error => {
+            print(error)
+            if (error.isAxiosError) {
+                print(error.code + ": " + error.response.data);
+            } else {
+                print(error.message);
+            }
         });
-
-    static timer = new UIText("")
-        .setX(new AdditiveConstraint(new SiblingConstraint(), (5).pixels()))
-        .setY((6).pixels())
-        .setColor(new ConstantColorConstraint(Settings.colorJacobValueText))
-
+    }
+    // -------------------------
 
     timeLeft = "";
     crops = ["Carrot", "Carrot", "Carrot"];
     cachedCrops = "";
 
-    constructor(window) {
-        this.window = window;
+    constructor() {
 
-        this.register = register("tick", () => {
-            // Add the component if it should be added and isn't already part of the window
-            if (Settings.jacobHudEnabled && !window.children.includes(JacobFeature.container)) {
-                window.addChild(JacobFeature.container);
-            }
-            // Remove the component if it shouldn't be seen and if it's still in the window
-            else if (!Settings.jacobHudEnabled && window.children.includes(JacobFeature.container)) {
-                window.removeChild(JacobFeature.container);
-            }
+        this.timer = new UIText("")
+            .setX(new SiblingConstraint(5))
+            .setY((6).pixels())
+            .setColor(new ConstantColorConstraint(Settings.colorJacobValueText))
+            .setChildOf(Window.getContainer())
 
+        this.register = register("step", () => {
             // Checks if the response succeeded with valid data, otherwise just set some defaults
             if (Symbol.iterator in JacobFeature.eventList) {
                 for (event of JacobFeature.eventList) {
@@ -119,19 +91,12 @@ export class JacobFeature {
                 this.crops = ["Carrot", "Carrot", "Carrot"];
                 // Someone likes carrots
             }
-        });
-
-        JacobFeature.container.startTimer(1000, 0, () => {
-            // Only trigger when outside of the editing gui due to hovering effects and
-            // updates when the background color changes
-            if (!guiWrapper.gui.isOpen()) JacobFeature.container.setColor(new ConstantColorConstraint(Settings.colorJacobBackground))
-
 
             if (this.cachedCrops !== this.crops.toString()) {
                 // Removes the old photos
-                JacobFeature.container
+                Window.getContainer().container
                     .clearChildren()
-                    .addChild(JacobFeature.timer);
+                    .addChild(this.timer);
 
                 for (let index = 0; index <= 2; index++) {
                     let image = UIImage.Companion.ofFile(new File(`config/ChatTriggers/images/${CROP_TO_IMAGE[this.crops[index]]}.png`))
@@ -141,38 +106,25 @@ export class JacobFeature {
                         .setHeight((15).pixels());
 
                     // Insert before to make images appear on the left of the timer
-                    JacobFeature.container.insertChildBefore(image, JacobFeature.timer);
+                    Window.getContainer().insertChildBefore(image, this.timer);
                 };
 
                 this.cachedCrops = this.crops.toString();
             }
-        })
+        }).setFps(2);
 
-        JacobFeature.timer.startTimer(1000, 0, () => {
-            JacobFeature.timer.setText(this.timeLeft);
+        // This is a timer because it modifies only the component that it's attached to
+        this.timer.startTimer(1000, 0, () => {
+            this.timer.setText(this.timeLeft);
 
             // This covers both the rainbow text setting being changed and
             // the changes to the constant color
-            if (Settings.colorJacobRainbow) JacobFeature.timer.setColor(new RainbowColorConstraint())
-            else JacobFeature.timer.setColor(new ConstantColorConstraint(Settings.colorJacobValueText));
+            if (Settings.colorJacobRainbow) this.timer.setColor(new RainbowColorConstraint())
+            else this.timer.setColor(new ConstantColorConstraint(Settings.colorJacobValueText));
         })
     }
 
-    static eventList = {};
-    static getEvents() {
-        axios.get("https://dawjaw.net/jacobs", {
-            headers: {
-                "User-Agent": "Mozilla/5.0 (ChatTriggers)"
-            },
-        }).then(response => {
-            JacobFeature.eventList = response.data;
-        }).catch(error => {
-            print(error)
-            if (error.isAxiosError) {
-                print(error.code + ": " + error.response.data);
-            } else {
-                print(error.message);
-            }
-        });
+    getWindow() {
+        return Window;
     }
 }
